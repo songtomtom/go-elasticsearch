@@ -4,19 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 )
 
-type Person struct {
-	Name   string `json:"name"`
-	Age    int    `json:"age"`
-	Gender string `json:"gender"`
+type Sentence struct {
+	Content string `json:"content"`
 }
 
 func main() {
+	if len(os.Args) < 2 {
+		log.Fatal("You must provide text as a command line argument.")
+	}
+	text := os.Args[1]
+
 	cfg := elasticsearch.Config{
 		Addresses: []string{
 			"http://localhost:9200",
@@ -27,21 +32,18 @@ func main() {
 		log.Fatalf("Error creating the client: %s", err)
 	}
 
-	people := []Person{
-		{Name: "John Doe", Age: 30, Gender: "Male"},
-		{Name: "Jane Doe", Age: 28, Gender: "Female"},
-	}
-
-	for _, person := range people {
-		personJson, err := json.Marshal(person)
+	sentences := strings.Split(text, ". ")
+	for i, sentence := range sentences {
+		s := Sentence{Content: sentence}
+		sJson, err := json.Marshal(s)
 		if err != nil {
-			log.Fatalf("Error marshaling the person: %s", err)
+			log.Fatalf("Error marshaling the sentence: %s", err)
 		}
 
 		req := esapi.IndexRequest{
 			Index:      "test-index",
-			DocumentID: person.Name,
-			Body:       strings.NewReader(string(personJson)),
+			DocumentID: strconv.Itoa(i),
+			Body:       strings.NewReader(string(sJson)),
 		}
 
 		res, err := req.Do(context.Background(), es)
@@ -53,7 +55,7 @@ func main() {
 		if res.IsError() {
 			log.Println(res.String())
 		} else {
-			log.Printf("Successfully indexed document: %s", person.Name)
+			log.Printf("Successfully indexed sentence: %s", sentence)
 		}
 	}
 }
